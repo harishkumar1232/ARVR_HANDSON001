@@ -1,0 +1,169 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WebGL Point Cloud</title>
+
+<style>
+body {
+    margin: 0;
+    background: black;
+    overflow: hidden;
+}
+
+canvas {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+}
+</style>
+
+</head>
+<body>
+
+<canvas id="glcanvas"></canvas>
+
+<script>
+
+// Vertex Shader
+const vsSource = `
+attribute vec3 aVertexPosition;
+
+void main() {
+
+    float perspective = 1.0 + (aVertexPosition.z * 0.5);
+
+    gl_Position = vec4(
+        aVertexPosition.x / perspective,
+        aVertexPosition.y / perspective,
+        aVertexPosition.z,
+        1.0
+    );
+
+    gl_PointSize = 3.0;
+}
+`;
+
+
+// Fragment Shader
+const fsSource = `
+precision mediump float;
+
+void main() {
+    gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0);
+}
+`;
+
+
+// Get Canvas
+const canvas = document.getElementById("glcanvas");
+
+// Create WebGL Context
+const gl = canvas.getContext("webgl");
+
+
+// Resize Canvas
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+}
+
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+
+// Shader Loader
+function loadShader(gl, type, source) {
+
+    const shader = gl.createShader(type);
+
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error("Shader compile error:", gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+    }
+
+    return shader;
+}
+
+
+// Compile Shaders
+const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+
+// Create Program
+const shaderProgram = gl.createProgram();
+
+gl.attachShader(shaderProgram, vertexShader);
+gl.attachShader(shaderProgram, fragmentShader);
+
+gl.linkProgram(shaderProgram);
+
+if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+    console.error("Program failed:", gl.getProgramInfoLog(shaderProgram));
+}
+
+gl.useProgram(shaderProgram);
+
+
+// Generate Random Points
+const numPoints = 10000;
+
+const positions = new Float32Array(numPoints * 3);
+
+for (let i = 0; i < numPoints * 3; i += 3) {
+
+    let x = (Math.random() - 0.5) * 2;
+    let y = (Math.random() - 0.5) * 2;
+    let z = (Math.random() - 0.5) * 2;
+
+    let distance = Math.sqrt(x*x + y*y + z*z);
+
+    positions[i] = (x / distance) * Math.random();
+    positions[i+1] = (y / distance) * Math.random();
+    positions[i+2] = (z / distance) * Math.random();
+}
+
+
+// Create Buffer
+const positionBuffer = gl.createBuffer();
+
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+
+// Connect Buffer to Shader
+const vertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+
+gl.enableVertexAttribArray(vertexPosition);
+
+gl.vertexAttribPointer(
+    vertexPosition,
+    3,
+    gl.FLOAT,
+    false,
+    0,
+    0
+);
+
+
+// Clear Screen
+gl.clearColor(0.0, 0.0, 0.0, 1.0);
+gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+// Draw Points
+gl.drawArrays(gl.POINTS, 0, numPoints);
+
+</script>
+
+</body>
+</html>
+```
